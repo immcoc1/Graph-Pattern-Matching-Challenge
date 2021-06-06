@@ -4,7 +4,7 @@
  */
 
 #include "backtrack.h"
-//#include <time.h>
+ //#include <time.h>
 
 
 Backtrack::Backtrack() {}
@@ -45,8 +45,8 @@ void Backtrack::PrintAllMatches(const Graph& data, const Graph& query,
     int* can_visit;
     can_visit = (int*)calloc(numQueryVertice, sizeof(int));
 
-    //time_t start, end;
-    //start = time(NULL);
+    time_t start, end;
+    start = time(NULL);
     for (size_t i = 0; i < cs.GetCandidateSize(root); i++) {
         Vertex first_candidate = cs.GetCandidate(root, i);
 
@@ -54,14 +54,14 @@ void Backtrack::PrintAllMatches(const Graph& data, const Graph& query,
         if (find_Embedding(first_candidate, root, embedding, DAG, DAG_invert, can_visit, data, query,
             cs)) {
             free(can_visit);
-            
+
             break;
         }
     }
-    //end = time(NULL);
-    //double result = (double)(end - start);
+    end = time(NULL);
+    double result = (double)(end - start);
     std::cout << result << std::endl;
-   
+
     return;
 
 }
@@ -97,11 +97,11 @@ Backtrack::find_Embedding(const Vertex data_v, const Vertex query_v, std::vector
     /* ---------------------------------------------------------------------------------------------
         2. embedding에 query vertex, data vertex pair 넣기
        ---------------------------------------------------------------------------------------------*/
-    /*std::vector<std::pair<Vertex, Vertex>> embedding_copy;
-    embedding_copy.resize(embedding.size());
-    std::copy(embedding.begin(), embedding.end(), embedding_copy.begin());*/
+       /*std::vector<std::pair<Vertex, Vertex>> embedding_copy;
+       embedding_copy.resize(embedding.size());
+       std::copy(embedding.begin(), embedding.end(), embedding_copy.begin());*/
 
-    //embedding_copy.emplace_back(query_v, data_v);
+       //embedding_copy.emplace_back(query_v, data_v);
     embedding.emplace_back(query_v, data_v);
 
     int* can_visit_copy;
@@ -120,8 +120,8 @@ Backtrack::find_Embedding(const Vertex data_v, const Vertex query_v, std::vector
         std::copy(embedding.begin(), embedding.end(), embedding_copy.begin());
 
         sort(embedding_copy.begin(), embedding_copy.end());
-        int hash_val = Get_HashVal(embedding_copy);
-        if (Insert_Hash(hash_val, embedding_copy)) {
+        //int hash_val = Get_HashVal(embedding_copy);
+        //if (Insert_Hash(hash_val, embedding_copy)) {
 
             std::ofstream fout("output.txt", std::ios::app);
 
@@ -147,10 +147,10 @@ Backtrack::find_Embedding(const Vertex data_v, const Vertex query_v, std::vector
                 return true;
             else
                 return false;
-        }
-        else {
-            return false;
-        }
+       // }
+       // else {
+       //     return false;
+       // }
 
     }
 
