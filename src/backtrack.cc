@@ -67,25 +67,7 @@ Backtrack::find_Embedding(const Vertex data_v, const Vertex query_v, Vertex embe
                           int can_visit[],
                           const Graph &data, const Graph &query, const CandidateSet &cs, int embedding_size) {
     /* ---------------------------------------------------------------------------------------------
-        1. DAG_invert의 query vertex에 대해 parent이면서 data vertex가 이웃한 쌍이 embedding에 없으면 종료
-       ---------------------------------------------------------------------------------------------*/
-
-    bool is_neighbor = true;
-
-    for (size_t i = 0; i < dag_invert[query_v].size(); i++) {
-        Vertex curQuery = dag_invert[query_v][i];
-
-        if (!data.IsNeighbor(embedding[curQuery], data_v)) {
-            is_neighbor = false;
-            break;
-        }
-    }
-
-    if (!is_neighbor) // 해당 data_vertex의 query_vertex의 부모 query_vertex에 mapping된 data_vertex들과 연결되어 있지 않으므로 종료
-        return false;
-
-    /* ---------------------------------------------------------------------------------------------
-        2. embedding에 query vertex, data vertex pair 넣기
+        1. embedding에 query vertex, data vertex pair 넣기
        ---------------------------------------------------------------------------------------------*/
 
     Vertex *embedding_copy;
@@ -111,7 +93,7 @@ Backtrack::find_Embedding(const Vertex data_v, const Vertex query_v, Vertex embe
     can_visit_copy[query_v] = 1; // 해당 query vertex는 방문 했음을 뜻함
 
     /* ---------------------------------------------------------------------------------------------
-        3. embedding size = query_size면 출력, return 하여 재귀 호출 이전으로 귀환
+        2. embedding size = query_size면 출력 후 종료
        ---------------------------------------------------------------------------------------------*/
 
     if (embedding_size + 1 == (int) query.GetNumVertices()) {
@@ -134,10 +116,10 @@ Backtrack::find_Embedding(const Vertex data_v, const Vertex query_v, Vertex embe
     }
 
     /* ---------------------------------------------------------------------------------------------
-        4. 다음 방문할 vertex 정하기
+        3. 다음 방문할 vertex 정하기
        ---------------------------------------------------------------------------------------------*/
 
-    // 4-1) 먼저 해당 query_vertex에 연결된 vertex들이 다음에 방문 가능한지 check
+    // 3-1) 먼저 해당 query_vertex에 연결된 vertex들이 다음에 방문 가능한지 check
     for (size_t i = 0; i < dag[query_v].size(); i++) {
         Vertex curQuery = dag[query_v][i]; // 해당 query_vertex에 연결된 vertex
 
@@ -154,11 +136,11 @@ Backtrack::find_Embedding(const Vertex data_v, const Vertex query_v, Vertex embe
             }
 
             if (next_visitable)
-                can_visit_copy[curQuery] = 2; // 방문할 수 있는 query vertex임을 표시
+                can_visit_copy[curQuery] = 2; // 방문할 수 있음
         }
     }
 
-    // 4-2) can_visit에서 cs값이 가장 작은 값에 해당하는 query vertex 방문
+    // 3-2) can_visit에서 cs값이 가장 작은 값에 해당하는 query vertex 방문
 
     Vertex next_vertex = -1;
     int next_vertex_cs_count = -1;
@@ -187,12 +169,28 @@ Backtrack::find_Embedding(const Vertex data_v, const Vertex query_v, Vertex embe
     for (int i = 0; i < next_vertex_cs_count; i++) {
         Vertex v = cs.GetCandidate(next_vertex, i);
 
-        // 다음 query vertex의 data vertex들 하나 하나 find_embedding 함수를 call 해줍니다.
-        if (find_Embedding(v, next_vertex, embedding_copy, dag, dag_invert, can_visit_copy, data, query,
-                           cs, embedding_size + 1)) { // 10만개를 다 찾았을 때 true 받아, 해당 함수를 벗어남
-            free(embedding_copy);
-            free(can_visit_copy);
-            return true;
+        /* 다음 방문할 query vertex로 향하는 edge가 있는 query vertex들에 mapping된 data vertex들과 
+           다음 방문할 query vertex의 cs의 vertex 사이에 모두 edge가 존재할 경우에만 다음 방문할 query vertex의 cs의 vertex에 대하여 find_embedding 함수를 call 할 수 있습니다. */
+
+        bool is_neighbor = true;
+
+        for (size_t j = 0; j < dag_invert[next_vertex].size(); j++) {
+            Vertex curQuery = dag_invert[next_vertex][j];
+
+            if (!data.IsNeighbor(embedding_copy[curQuery], v)) {
+                is_neighbor = false;
+                break;
+            }
+        }
+
+        if (is_neighbor) {
+            // 다음 query vertex의 data vertex들 하나 하나 find_embedding 함수를 call 해줍니다
+            if (find_Embedding(v, next_vertex, embedding_copy, dag, dag_invert, can_visit_copy, data, query,
+                               cs, embedding_size + 1)) { // 10만개를 다 찾았으므로 true
+                free(embedding_copy);
+                free(can_visit_copy);
+                return true;
+            }
         }
 
     }
@@ -212,7 +210,7 @@ Vertex Backtrack::SelectRoot(const Graph &query, const CandidateSet &cs) {
     for (Vertex v = 1; v < (int) query.GetNumVertices(); v++) {
         double v_data = (double) cs.GetCandidateSize(v) / (double) query.GetDegree(v);
 
-        if (root_data > v_data) { // (initial Candidate Set에서의 canididate set의 크기 / query에서의 degree)가 가장 작은 vertex를 root로 설정
+        if (root_data > v_data) { // initial Candidate Set에서의 canididate set의 크기 / query에서의 degree가 가장 작은 vertex를 root로 설정
             root = v;
             root_data = v_data;
         }
