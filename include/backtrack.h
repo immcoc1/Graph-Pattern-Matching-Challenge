@@ -15,7 +15,6 @@
 class Backtrack {
 private:
     int total_embedding;
-    std::map<int, std::vector<std::pair<Vertex, Vertex>>> hashmap;
 
 public:
     Backtrack();
@@ -26,10 +25,10 @@ public:
     void PrintAllMatches(const Graph& data, const Graph& query,
         const CandidateSet& cs);
 
-    bool find_Embedding(const Vertex data_v, const Vertex query_v, std::vector<std::pair<Vertex, Vertex>> embedding,
+    bool find_Embedding(const Vertex data_v, const Vertex query_v, Vertex embedding[],
         std::vector<std::vector<Vertex>> dag, std::vector<std::vector<Vertex>> dag_invert,
         int can_visit[],
-        const Graph& data, const Graph& query, const CandidateSet& cs);
+        const Graph& data, const Graph& query, const CandidateSet& cs, int embedding_size);
 
     Vertex SelectRoot(const Graph& query, const CandidateSet& cs);
 
@@ -53,11 +52,6 @@ public:
     int Get_total_embedding() {
         return total_embedding;
     };
-
-
-
-
-
 };
 
 
