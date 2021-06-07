@@ -4,19 +4,18 @@
  */
 
 #include "backtrack.h"
- //#include <time.h>
 
 
 Backtrack::Backtrack() {}
 
 Backtrack::~Backtrack() {}
 
-void Backtrack::PrintAllMatches(const Graph& data, const Graph& query,
-    const CandidateSet& cs) {
+void Backtrack::PrintAllMatches(const Graph &data, const Graph &query,
+                                const CandidateSet &cs) {
     // implement your code here.
 
     // 1. Build DAG
-    Set_total_embedding(0);
+    Set_total_embedding(0); // 10만개를 출력하면 종료할 수 있게 total_embedding 멤버변수 0으로 설정
 
     // 1-1) initial Candidate Set에서의 canididate set의 크기 / query에서의 degree가 가장 작은 vertex를 root로 설정
     size_t numQueryVertice = query.GetNumVertices();
@@ -24,7 +23,7 @@ void Backtrack::PrintAllMatches(const Graph& data, const Graph& query,
     Vertex root = SelectRoot(query, cs);
 
     std::vector<std::vector<Vertex>> DAG; // DAG
-    std::vector<std::vector<Vertex>> DAG_invert; // DAG Invert
+    std::vector<std::vector<Vertex>> DAG_invert; // DAG Invert (DAG에서 반대로 edge를 설정)
 
     DAG.resize(numQueryVertice);
     DAG_invert.resize(numQueryVertice);
@@ -34,179 +33,156 @@ void Backtrack::PrintAllMatches(const Graph& data, const Graph& query,
 
 
     // 2. Embedding 찾기
-    std::ofstream fout("output.txt");
+    std::cout << "t " << numQueryVertice << "\n";
 
-    fout << "t " << numQueryVertice << "\n";
-    //    std::cout << "t " << numQueryVertice << "\n";
+    // embedding을 저장할 배열
+    Vertex *embedding = new Vertex[numQueryVertice];
+    std::fill_n(embedding, numQueryVertice, -1);
 
-    fout.close();
+    // 다음에 방문 가능한지 여부를 저장할 배열
+    int *can_visit;
+    can_visit = (int *) calloc(numQueryVertice, sizeof(int));
 
-    std::vector<std::pair<Vertex, Vertex>> embedding;
-    int* can_visit;
-    can_visit = (int*)calloc(numQueryVertice, sizeof(int));
-
-    time_t start, end;
-    start = time(NULL);
+    // rooted-DAG의 root에 대하여
     for (size_t i = 0; i < cs.GetCandidateSize(root); i++) {
-        Vertex first_candidate = cs.GetCandidate(root, i);
+        Vertex first_candidate = cs.GetCandidate(root, i); // root의 cs의 원소들을 하나씩 find_embedding 함수에 넣어줍니다
 
-        // true return은 10만개를 다 찾았음을 의미
+        // true를 return하면 embedding 10만개를 다 찾았음을 의미
         if (find_Embedding(first_candidate, root, embedding, DAG, DAG_invert, can_visit, data, query,
-            cs)) {
+                           cs, 0)) {
+            delete[] embedding;
             free(can_visit);
-
-            break;
+            return;
         }
     }
-    end = time(NULL);
-    double result = (double)(end - start);
-    std::cout << result << std::endl;
 
-    return;
+    delete[] embedding;
+    free(can_visit);
 
 }
 
 
 bool
-Backtrack::find_Embedding(const Vertex data_v, const Vertex query_v, std::vector<std::pair<Vertex, Vertex>> embedding,
-    std::vector<std::vector<Vertex>> dag, std::vector<std::vector<Vertex>> dag_invert,
-    int can_visit[],
-    const Graph& data, const Graph& query, const CandidateSet& cs) {
+Backtrack::find_Embedding(const Vertex data_v, const Vertex query_v, Vertex embedding[],
+                          std::vector<std::vector<Vertex>> dag, std::vector<std::vector<Vertex>> dag_invert,
+                          int can_visit[],
+                          const Graph &data, const Graph &query, const CandidateSet &cs, int embedding_size) {
     /* ---------------------------------------------------------------------------------------------
         1. DAG_invert의 query vertex에 대해 parent이면서 data vertex가 이웃한 쌍이 embedding에 없으면 종료
        ---------------------------------------------------------------------------------------------*/
 
+    bool is_neighbor = true;
+
     for (size_t i = 0; i < dag_invert[query_v].size(); i++) {
-        bool isFound = false; // true면 embedding에 query의 parent가 존재함을 의미
         Vertex curQuery = dag_invert[query_v][i];
 
-        for (Vertex j = 0; j < (int)embedding.size(); j++) {
-            std::pair<Vertex, Vertex> curPair = embedding[j];
-
-            if (curPair.first == curQuery && data.IsNeighbor(curPair.second, data_v)) {
-                isFound = true;
-                break;
-            }
-        }
-
-        if (!isFound) {
-            return false;
+        if (!data.IsNeighbor(embedding[curQuery], data_v)) {
+            is_neighbor = false;
+            break;
         }
     }
+
+    if (!is_neighbor)
+        return false;
 
     /* ---------------------------------------------------------------------------------------------
         2. embedding에 query vertex, data vertex pair 넣기
        ---------------------------------------------------------------------------------------------*/
-       /*std::vector<std::pair<Vertex, Vertex>> embedding_copy;
-       embedding_copy.resize(embedding.size());
-       std::copy(embedding.begin(), embedding.end(), embedding_copy.begin());*/
 
-       //embedding_copy.emplace_back(query_v, data_v);
-    embedding.emplace_back(query_v, data_v);
+    Vertex *embedding_copy;
+    embedding_copy = (Vertex *) calloc(query.GetNumVertices(), sizeof(Vertex));
+//    std::copy(embedding, embedding + query.GetNumVertices(), embedding_copy);
 
-    int* can_visit_copy;
-    can_visit_copy = (int*)calloc(query.GetNumVertices(), sizeof(int));
+
+    // embedding 복사 + injective 조건 확인
+    for (Vertex i = 0; i < (int)query.GetNumVertices(); i++){
+        if (embedding[i] == data_v){ // 이미 해당 data vertex가 embedding에 있으므로 injective 조건을 만족 x
+            free(embedding_copy);
+            return false;
+        }
+
+        embedding_copy[i] = embedding[i];
+    }
+
+    embedding_copy[query_v] = data_v; // 해당 data vertex embedding에 넣기
+
+
+    int *can_visit_copy;
+    can_visit_copy = (int *) calloc(query.GetNumVertices(), sizeof(int));
     std::copy(can_visit, can_visit + query.GetNumVertices(), can_visit_copy);
 
-    can_visit_copy[query_v] = 1;
+    can_visit_copy[query_v] = 1; // 해당 query vertex는 방문 했음을 뜻함
 
     /* ---------------------------------------------------------------------------------------------
         3. embedding size = query_size면 출력 후 종료
        ---------------------------------------------------------------------------------------------*/
-    if (embedding.size() == query.GetNumVertices()) {
 
-        std::vector<std::pair<Vertex, Vertex>> embedding_copy;
-        embedding_copy.resize(embedding.size());
-        std::copy(embedding.begin(), embedding.end(), embedding_copy.begin());
+    if (embedding_size + 1 == (int) query.GetNumVertices()) {
 
-        sort(embedding_copy.begin(), embedding_copy.end());
-        //int hash_val = Get_HashVal(embedding_copy);
-        //if (Insert_Hash(hash_val, embedding_copy)) {
+        std::cout << "a ";
+        for (Vertex i = 0; i < (int) query.GetNumVertices(); i++) {
+            std::cout << embedding_copy[i] << " ";
+        }
+        std::cout << std::endl;
 
-            std::ofstream fout("output.txt", std::ios::app);
+        free(embedding_copy);
+        free(can_visit_copy);
 
-            fout << "a ";
-            for (Vertex i = 0; i < (int)embedding_copy.size(); i++) {
-                fout << embedding_copy[i].second << " ";
-            }
-            fout << "\n";
-            fout.close();
+        Set_total_embedding(Get_total_embedding() + 1);
 
-
-            //            std::cout << "a ";
-            //            for (Vertex i = 0; i < (int)embedding.size(); i++) {
-            //                std::cout << embedding[i].second << " ";
-            //            }
-            //            std::cout << std::endl;
-
-            free(can_visit_copy);
-
-            Set_total_embedding(Get_total_embedding() + 1);
-
-            if (Get_total_embedding() == 100000)
-                return true;
-            else
-                return false;
-       // }
-       // else {
-       //     return false;
-       // }
-
+        if (Get_total_embedding() == 100000)
+            return true;
+        else
+            return false;
     }
 
     /* ---------------------------------------------------------------------------------------------
         4. 다음 방문할 vertex 정하기
        ---------------------------------------------------------------------------------------------*/
 
-       //    int next_visit_count = 0;
-
-           // 4-1) 먼저 해당 query_vertex에 연결된 vertex들 can_visit에 추가
+    // 4-1) 먼저 해당 query_vertex에 연결된 vertex들이 다음에 방문 가능한지 check
     for (size_t i = 0; i < dag[query_v].size(); i++) {
-        if (can_visit_copy[dag[query_v][i]] == 0) {
-            can_visit_copy[dag[query_v][i]] = 2; // 방문할 수 있음
-//            next_visit_count++;
-        }
-    }
+        Vertex curQuery = dag[query_v][i]; // 해당 query_vertex에 연결된 vertex
 
-    // 4-2) can_visit에서 가장 작은 값에 해당하는 query vertex 방문
-//    std::pair<Vertex, int> *next_visit;
-//
-//    next_visit = (std::pair<Vertex, int> *) calloc(query.GetNumVertices(), sizeof(std::pair<Vertex, int>));
-//
-//    int count = 0;
-
-    Vertex next_vertex = -1;
-    int next_vertex_cs_count = -1;
-
-    for (Vertex i = 0; i < (int)query.GetNumVertices(); i++) {
-        if (can_visit_copy[i] == 2) {
+        if (can_visit_copy[curQuery] == 0) { // 아직 방문 안된 경우
             bool next_visitable = true;
 
-            for (size_t j = 0; j < dag_invert[i].size(); j++) {
-                Vertex curQuery = dag_invert[i][j]; // 가장 먼저 방문 가능한 query vertex의 부모 vertex
-
-                if (can_visit_copy[curQuery] != 1) {
+            // 그 vertex의 부모 vertex를 봅니다
+            for (size_t j = 0; j < dag_invert[curQuery].size(); j++) {
+                if (can_visit_copy[dag_invert[curQuery][j]] !=
+                    1) { // 해당 vertex의 모든 부모들을 이미 방문한 경우에만 진짜로 다음에 방문 가능한 vertex가 됩니다
                     next_visitable = false;
                     break;
                 }
             }
 
-            if (next_visitable) {
-                if (next_vertex == -1) {
+            if (next_visitable)
+                can_visit_copy[curQuery] = 2; // 방문할 수 있음
+        }
+    }
+
+    // 4-2) can_visit에서 cs값이 가장 작은 값에 해당하는 query vertex 방문
+
+    Vertex next_vertex = -1;
+    int next_vertex_cs_count = -1;
+
+    for (Vertex i = 0; i < (int) query.GetNumVertices(); i++) {
+        if (can_visit_copy[i] == 2) { // 다음 방문 가능한 query vertex에 대하여
+            if (next_vertex == -1) { // 처음 for loop에 들어와서 값이 변경되는 경우
+                next_vertex = i;
+                next_vertex_cs_count = (int) cs.GetCandidateSize(i);
+            } else {
+                if (next_vertex_cs_count >
+                    (int) cs.GetCandidateSize(i)) { // cs size가 가장 작은 vertex가 다음 방문할 query vertex가 됩니다
                     next_vertex = i;
-                    next_vertex_cs_count = (int)cs.GetCandidateSize(i);
-                }
-                else {
-                    if (next_vertex_cs_count > (int)cs.GetCandidateSize(i)) {
-                        next_vertex = i;
-                        next_vertex_cs_count = (int)cs.GetCandidateSize(i);
-                    }
+                    next_vertex_cs_count = (int) cs.GetCandidateSize(i);
                 }
             }
         }
     }
 
-    if (next_vertex == -1) { // 다음 방문할 vertex가 없음
+    if (next_vertex == -1) { // 다음 방문할 vertex가 없는 경우 종료
+        free(embedding_copy);
         free(can_visit_copy);
         return false;
     }
@@ -215,31 +191,31 @@ Backtrack::find_Embedding(const Vertex data_v, const Vertex query_v, std::vector
     for (int i = 0; i < next_vertex_cs_count; i++) {
         Vertex v = cs.GetCandidate(next_vertex, i);
 
-
-
-        if (find_Embedding(v, next_vertex, embedding, dag, dag_invert, can_visit_copy, data, query,
-            cs)) {
-            embedding.pop_back();
+        // 다음 query vertex의 data vertex들 하나 하나 find_embedding 함수를 call 해줍니다.
+        if (find_Embedding(v, next_vertex, embedding_copy, dag, dag_invert, can_visit_copy, data, query,
+                           cs, embedding_size + 1)) {
+            free(embedding_copy);
             free(can_visit_copy);
             return true;
         }
 
-
     }
 
+    free(embedding_copy);
     free(can_visit_copy);
     return false; // 아직 10만개를 다 찾지 못했으므로 false
+
 }
 
-Vertex Backtrack::SelectRoot(const Graph& query, const CandidateSet& cs) {
+Vertex Backtrack::SelectRoot(const Graph &query, const CandidateSet &cs) {
     // root는 일단 Vertex 0으로 가정
     Vertex root = 0;
     size_t size = query.GetNumVertices();
-    double root_data = (double)cs.GetCandidateSize(0) / (double)query.GetDegree(0);
+    double root_data = (double) cs.GetCandidateSize(0) / (double) query.GetDegree(0);
 
     // query의 vertex를 한번씩 훑으면서 계산
-    for (Vertex i = 1; i < (int)size; i++) {
-        double v_data = (double)cs.GetCandidateSize(i) / (double)query.GetDegree(i);
+    for (Vertex i = 1; i < (int) size; i++) {
+        double v_data = (double) cs.GetCandidateSize(i) / (double) query.GetDegree(i);
 
         if (root_data > v_data) {
             root = i;
@@ -248,19 +224,21 @@ Vertex Backtrack::SelectRoot(const Graph& query, const CandidateSet& cs) {
     }
 
     return root;
+
 }
 
-void Backtrack::BuildDAG(Vertex root, const Graph& query, std::vector<std::vector<Vertex>>& DAG,
-    std::vector<std::vector<Vertex>>& DAG_invert) {
+void Backtrack::BuildDAG(Vertex root, const Graph &query, std::vector<std::vector<Vertex>> &DAG,
+                         std::vector<std::vector<Vertex>> &DAG_invert) {
     std::queue<Vertex> Q;
-    bool* visited;
+    bool *visited;
     size_t size = query.GetNumVertices();
 
     // 메모리 동적 할당
-    visited = (bool*)calloc(size, sizeof(bool));
+    visited = (bool *) calloc(size, sizeof(bool));
 
     Q.push(root);
 
+    // BFS order로 vertex들을 훑으면서 DAG, DAG_invert에 vertex들을 넣습니다
     while (!Q.empty()) {
         Vertex u = Q.front();
         Q.pop();
@@ -285,68 +263,4 @@ void Backtrack::BuildDAG(Vertex root, const Graph& query, std::vector<std::vecto
     // 메모리 동적 할당 해제
     free(visited);
 
-}
-
-void Backtrack::InsertionSort(std::pair<Vertex, int> query[], int p, int r) {
-    for (int last = p + 1; last <= r; last++) {
-        int index = last;
-        int data = query[last].second;
-        std::pair<Vertex, int> element = query[last];
-
-        for (int i = last - 1; (i >= 0) && (query[i].second > data); i--) {
-            query[i + 1] = query[i];
-            index = i;
-        }
-
-        query[index] = element;
-    }
-}
-
-void Backtrack::Swap(std::pair<Vertex, int> query[], int p, int r) {
-    if (p == r)
-        return;
-
-    std::pair<Vertex, int> temp = query[p];
-    query[p] = query[r];
-    query[r] = temp;
-}
-
-int Backtrack::Median(std::pair<Vertex, int> query[], int p, int q, int r) {
-    int m = (query[p].second + query[q].second + query[r].second) -
-        std::max(query[p].second, std::max(query[q].second, query[r].second)) -
-        std::min(query[p].second, std::min(query[q].second, query[r].second));
-
-    return (m == query[p].second) ? p : (m == query[q].second) ? q : r;
-}
-
-int Backtrack::Partition(std::pair<Vertex, int> query[], int p, int r) {
-    int q = p + (r - p) / 2;
-    int pivot_index = Median(query, p, q, r);
-    std::pair<Vertex, int> pivot = query[pivot_index];
-
-    Swap(query, p, pivot_index);
-
-    int index = p;
-
-    for (int i = p + 1; i <= r; i++) {
-        if (query[i].second < pivot.second) {
-            Swap(query, i, ++index);
-        }
-    }
-
-    Swap(query, p, index);
-
-    return index;
-}
-
-void Backtrack::QuickSort(std::pair<Vertex, int> query[], int p, int r) {
-    if (p < r) {
-        if (r - p + 1 <= 10)
-            InsertionSort(query, p, r);
-        else {
-            int q = Partition(query, p, r);
-            QuickSort(query, p, q - 1);
-            QuickSort(query, q + 1, r);
-        }
-    }
 }
