@@ -154,7 +154,7 @@ Backtrack::find_Embedding(const Vertex data_v, const Vertex query_v, Vertex embe
             }
 
             if (next_visitable)
-                can_visit_copy[curQuery] = 2; // 방문할 수 있음
+                can_visit_copy[curQuery] = 2; // 방문할 수 있는 query vertex임을 표시
         }
     }
 
@@ -212,7 +212,7 @@ Vertex Backtrack::SelectRoot(const Graph &query, const CandidateSet &cs) {
     for (Vertex v = 1; v < (int) query.GetNumVertices(); v++) {
         double v_data = (double) cs.GetCandidateSize(v) / (double) query.GetDegree(v);
 
-        if (root_data > v_data) { // initial Candidate Set에서의 canididate set의 크기 / query에서의 degree가 가장 작은 vertex를 root로 설정
+        if (root_data > v_data) { // (initial Candidate Set에서의 canididate set의 크기 / query에서의 degree)가 가장 작은 vertex를 root로 설정
             root = v;
             root_data = v_data;
         }
