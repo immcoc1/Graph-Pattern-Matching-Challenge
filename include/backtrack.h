@@ -25,7 +25,7 @@ public:
     void PrintAllMatches(const Graph& data, const Graph& query,
         const CandidateSet& cs);
 
-    bool find_Embedding(const Vertex data_v, const Vertex query_v, Vertex embedding[],
+    bool find_Embedding(Vertex data_v, Vertex query_v, Vertex embedding[],
         std::vector<std::vector<Vertex>> dag, std::vector<std::vector<Vertex>> dag_invert,
         int can_visit[],
         const Graph& data, const Graph& query, const CandidateSet& cs, int embedding_size);
@@ -35,21 +35,11 @@ public:
     void BuildDAG(Vertex root, const Graph& query, std::vector<std::vector<Vertex>>& DAG,
         std::vector<std::vector<Vertex>>& DAG_invert);
 
-    void InsertionSort(std::pair<Vertex, int> query[], int p, int r);
-
-    void Swap(std::pair<Vertex, int> query[], int p, int r);
-
-    int Median(std::pair<Vertex, int> query[], int p, int q, int r);
-
-    int Partition(std::pair<Vertex, int> query[], int p, int r);
-
-    void QuickSort(std::pair<Vertex, int> query[], int p, int r);
-
     void Set_total_embedding(int num) {
         total_embedding = num;
     };
 
-    int Get_total_embedding() {
+    int Get_total_embedding() const {
         return total_embedding;
     };
 };
