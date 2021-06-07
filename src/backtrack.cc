@@ -12,8 +12,6 @@ Backtrack::~Backtrack() {}
 
 void Backtrack::PrintAllMatches(const Graph &data, const Graph &query,
                                 const CandidateSet &cs) {
-    // implement your code here.
-
     // 1. Build DAG
     Set_total_embedding(0); // 10만개를 출력하면 종료할 수 있게 total_embedding 멤버변수 0으로 설정
 
@@ -36,7 +34,7 @@ void Backtrack::PrintAllMatches(const Graph &data, const Graph &query,
     std::cout << "t " << numQueryVertice << "\n";
 
     // embedding을 저장할 배열
-    Vertex *embedding = new Vertex[numQueryVertice];
+    auto *embedding = new Vertex[numQueryVertice];
     std::fill_n(embedding, numQueryVertice, -1);
 
     // 다음에 방문 가능한지 여부를 저장할 배열
@@ -56,6 +54,7 @@ void Backtrack::PrintAllMatches(const Graph &data, const Graph &query,
         }
     }
 
+    // 10만개 이하의 embedding이 나오는 경우
     delete[] embedding;
     free(can_visit);
 
@@ -82,7 +81,7 @@ Backtrack::find_Embedding(const Vertex data_v, const Vertex query_v, Vertex embe
         }
     }
 
-    if (!is_neighbor)
+    if (!is_neighbor) // 해당 data_vertex의 query_vertex의 부모 query_vertex에 mapping된 data_vertex들과 연결되어 있지 않으므로 종료
         return false;
 
     /* ---------------------------------------------------------------------------------------------
@@ -91,8 +90,6 @@ Backtrack::find_Embedding(const Vertex data_v, const Vertex query_v, Vertex embe
 
     Vertex *embedding_copy;
     embedding_copy = (Vertex *) calloc(query.GetNumVertices(), sizeof(Vertex));
-//    std::copy(embedding, embedding + query.GetNumVertices(), embedding_copy);
-
 
     // embedding 복사 + injective 조건 확인
     for (Vertex i = 0; i < (int)query.GetNumVertices(); i++){
@@ -114,7 +111,7 @@ Backtrack::find_Embedding(const Vertex data_v, const Vertex query_v, Vertex embe
     can_visit_copy[query_v] = 1; // 해당 query vertex는 방문 했음을 뜻함
 
     /* ---------------------------------------------------------------------------------------------
-        3. embedding size = query_size면 출력 후 종료
+        3. embedding size = query_size면 출력, return 하여 재귀 호출 이전으로 귀환
        ---------------------------------------------------------------------------------------------*/
 
     if (embedding_size + 1 == (int) query.GetNumVertices()) {
@@ -130,7 +127,7 @@ Backtrack::find_Embedding(const Vertex data_v, const Vertex query_v, Vertex embe
 
         Set_total_embedding(Get_total_embedding() + 1);
 
-        if (Get_total_embedding() == 100000)
+        if (Get_total_embedding() == 100000) // 10만개를 다 찾은 경우 true를 return
             return true;
         else
             return false;
@@ -187,13 +184,12 @@ Backtrack::find_Embedding(const Vertex data_v, const Vertex query_v, Vertex embe
         return false;
     }
 
-
     for (int i = 0; i < next_vertex_cs_count; i++) {
         Vertex v = cs.GetCandidate(next_vertex, i);
 
         // 다음 query vertex의 data vertex들 하나 하나 find_embedding 함수를 call 해줍니다.
         if (find_Embedding(v, next_vertex, embedding_copy, dag, dag_invert, can_visit_copy, data, query,
-                           cs, embedding_size + 1)) {
+                           cs, embedding_size + 1)) { // 10만개를 다 찾았을 때 true 받아, 해당 함수를 벗어남
             free(embedding_copy);
             free(can_visit_copy);
             return true;
@@ -210,15 +206,14 @@ Backtrack::find_Embedding(const Vertex data_v, const Vertex query_v, Vertex embe
 Vertex Backtrack::SelectRoot(const Graph &query, const CandidateSet &cs) {
     // root는 일단 Vertex 0으로 가정
     Vertex root = 0;
-    size_t size = query.GetNumVertices();
     double root_data = (double) cs.GetCandidateSize(0) / (double) query.GetDegree(0);
 
     // query의 vertex를 한번씩 훑으면서 계산
-    for (Vertex i = 1; i < (int) size; i++) {
-        double v_data = (double) cs.GetCandidateSize(i) / (double) query.GetDegree(i);
+    for (Vertex v = 1; v < (int) query.GetNumVertices(); v++) {
+        double v_data = (double) cs.GetCandidateSize(v) / (double) query.GetDegree(v);
 
-        if (root_data > v_data) {
-            root = i;
+        if (root_data > v_data) { // initial Candidate Set에서의 canididate set의 크기 / query에서의 degree가 가장 작은 vertex를 root로 설정
+            root = v;
             root_data = v_data;
         }
     }
@@ -229,14 +224,13 @@ Vertex Backtrack::SelectRoot(const Graph &query, const CandidateSet &cs) {
 
 void Backtrack::BuildDAG(Vertex root, const Graph &query, std::vector<std::vector<Vertex>> &DAG,
                          std::vector<std::vector<Vertex>> &DAG_invert) {
-    std::queue<Vertex> Q;
+    std::queue<Vertex> Q; // BFS를 위한 queue
     bool *visited;
-    size_t size = query.GetNumVertices();
 
     // 메모리 동적 할당
-    visited = (bool *) calloc(size, sizeof(bool));
+    visited = (bool *) calloc(query.GetNumVertices(), sizeof(bool));
 
-    Q.push(root);
+    Q.push(root); // root를 가장 먼저 방문
 
     // BFS order로 vertex들을 훑으면서 DAG, DAG_invert에 vertex들을 넣습니다
     while (!Q.empty()) {
@@ -246,8 +240,8 @@ void Backtrack::BuildDAG(Vertex root, const Graph &query, std::vector<std::vecto
         Vertex start = query.GetNeighborStartOffset(u);
         Vertex end = query.GetNeighborEndOffset(u);
 
-        for (Vertex j = start; j < end; j++) {
-            Vertex curNeigh = query.GetNeighbor(j);
+        for (Vertex v = start; v < end; v++) {
+            Vertex curNeigh = query.GetNeighbor(v);
 
             if (!visited[curNeigh]) {
                 DAG[u].push_back(curNeigh);
